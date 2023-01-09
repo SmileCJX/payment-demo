@@ -1,6 +1,7 @@
 package pers.caijx.paymentdemo.service.impl;
 
 import com.google.gson.Gson;
+import com.wechat.pay.contrib.apache.httpclient.util.AesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -20,7 +21,10 @@ import pers.caijx.paymentdemo.util.OrderNoUtils;
 
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -126,5 +130,37 @@ public class WxPayServiceImpl implements WxPayService {
             response.close();
         }
 
+    }
+
+    @Override
+    public void processOrder(Map<String, Object> bodyMap) throws GeneralSecurityException {
+        log.info("处理订单");
+
+        String plainText = decryptFromResource(bodyMap);
+    }
+
+    /**
+     * 对称解密
+     * @param bodyMap
+     * @return
+     */
+    private String decryptFromResource(Map<String, Object> bodyMap) throws GeneralSecurityException {
+        log.info("对称解密");
+        // 通知数据
+        Map<String, String> resourceMap = (Map<String, String>) bodyMap.get("resource");
+        // 数据密文
+        String ciphertext = resourceMap.get("ciphertext");
+        // 随机串
+        String nonce = resourceMap.get("nonce");
+        // 附加数据
+        String associatedData = resourceMap.get("associated_data");
+
+        log.info("密文 ===》 {}", ciphertext);
+        AesUtil aesUtil = new AesUtil(wxPayConfig.getApiV3Key().getBytes(StandardCharsets.UTF_8));
+        String plainText = aesUtil.decryptToString(associatedData.getBytes(StandardCharsets.UTF_8)
+                , nonce.getBytes(StandardCharsets.UTF_8)
+                , ciphertext);
+        log.info("明文 ===》 {}", plainText);
+        return plainText;
     }
 }

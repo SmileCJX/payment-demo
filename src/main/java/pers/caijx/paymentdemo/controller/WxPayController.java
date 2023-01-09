@@ -78,7 +78,9 @@ public class WxPayController {
                 return gson.toJson(map);
             }
             log.info("通知验签成功");
-            // TODO： 处理订单
+
+            // 处理订单
+            wxPayService.processOrder(bodyMap);
 
             // 成功应答
             response.setStatus(200);
