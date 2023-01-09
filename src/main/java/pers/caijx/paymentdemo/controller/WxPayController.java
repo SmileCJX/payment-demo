@@ -2,12 +2,14 @@ package pers.caijx.paymentdemo.controller;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.wechat.pay.contrib.apache.httpclient.auth.Verifier;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import pers.caijx.paymentdemo.service.WxPayService;
 import pers.caijx.paymentdemo.util.HttpUtils;
+import pers.caijx.paymentdemo.util.WechatPay2ValidatorForRequest;
 import pers.caijx.paymentdemo.vo.R;
 
 import javax.annotation.Resource;
@@ -34,6 +36,9 @@ public class WxPayController {
     @Resource
     private WxPayService wxPayService;
 
+    @Resource
+    private Verifier verifier;
+
     @ApiOperation("生成统一下单支付api，生成支付二维码")
     @PostMapping("native/{productId}")
     public R nativePay(@PathVariable Long productId) throws Exception {
@@ -58,10 +63,21 @@ public class WxPayController {
             String body = HttpUtils.readData(request);
             Map<String, Object> bodyMap = gson.fromJson(body, HashMap.class);
             log.info("支付通知的id ===》 {}", bodyMap.get("id"));
-            Object id = bodyMap.get("id");
+            String requestId = (String) bodyMap.get("id");
             log.info("支付通知的完整数 ===》 {}", body);
             // TODO: 签名的验证
-
+            WechatPay2ValidatorForRequest wechatPay2ValidatorForRequest = new WechatPay2ValidatorForRequest(verifier
+                    , body
+                    , requestId);
+            if (!wechatPay2ValidatorForRequest.validate(request)) {
+                log.error("通知验签失败");
+                // 失败应答
+                response.setStatus(500);
+                map.put("code", "ERROR");
+                map.put("message", "通知验签失败");
+                return gson.toJson(map);
+            }
+            log.info("通知验签成功");
             // TODO： 处理订单
 
             // 成功应答
@@ -71,6 +87,7 @@ public class WxPayController {
             return gson.toJson(map);
         } catch (Exception e) {
             e.printStackTrace();
+            // 失败应答
             response.setStatus(500);
             map.put("code", "ERROR");
             map.put("message", "失败");
