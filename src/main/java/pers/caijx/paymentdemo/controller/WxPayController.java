@@ -1,14 +1,21 @@
 package pers.caijx.paymentdemo.controller;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import pers.caijx.paymentdemo.service.WxPayService;
+import pers.caijx.paymentdemo.util.HttpUtils;
 import pers.caijx.paymentdemo.vo.R;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @ClassName WxPayController
@@ -35,5 +42,39 @@ public class WxPayController {
       Map<String,Object> map = wxPayService.nativePay(productId);
 
       return R.ok().setData(map);
+    }
+
+    @PostMapping("/native/notify")
+    public String nativeNotify(HttpServletRequest request, HttpServletResponse response) {
+
+        Gson gson = new Gson();
+        Map<String, String> map = new HashMap<>(); // 应当对象
+        try {
+
+//            对后台通知交互时，如果微信收到商户的应答不符合规范或超时，微信认为通知失败，微信会通过一定的策略定期重新发起通知，尽可能提高通知的成功率，但微信不保证通知最终能成功。（通知频率为15s/15s/30s/3m/10m/20m/30m/30m/30m/60m/3h/3h/3h/6h/6h - 总计 24h4m）
+//            int i = 1 / 0;
+//            TimeUnit.SECONDS.sleep(5);
+            // 处理通知参数
+            String body = HttpUtils.readData(request);
+            Map<String, Object> bodyMap = gson.fromJson(body, HashMap.class);
+            log.info("支付通知的id ===》 {}", bodyMap.get("id"));
+            Object id = bodyMap.get("id");
+            log.info("支付通知的完整数 ===》 {}", body);
+            // TODO: 签名的验证
+
+            // TODO： 处理订单
+
+            // 成功应答
+            response.setStatus(200);
+            map.put("code", "SUCCESS");
+            map.put("message", "成功");
+            return gson.toJson(map);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.setStatus(500);
+            map.put("code", "ERROR");
+            map.put("message", "失败");
+            return gson.toJson(map);
+        }
     }
 }
